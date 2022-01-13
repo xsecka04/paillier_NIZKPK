@@ -1,2 +1,2 @@
 # paillier_NIZKPK
-C implepementation of Pallier cryptosystem
+C implepementation of Paillier cryptosystem
