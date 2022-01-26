@@ -1,0 +1,1 @@
+gcc manager.c -o manager paillier.c -lgmp
