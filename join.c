@@ -10,12 +10,17 @@ Setup_SGM*
 nizkpk_setup_SGM(int param, paillier_prvkey_t* prv, paillier_pubkey_t* pub){
 
     Setup_SGM* res;
-
+    mpz_t g;
+    mpz_init(g);
+    mpz_init(res->g);
     paillier_keygen(param, &pub, &prv, paillier_get_rand_devurandom);
 
-    res->pub = *pub;
-    mpz_init_set_ui(res->g, get_blinding_factor(pub, paillier_get_rand_devurandom));
+    //mpz_set(g, get_blinding_factor(pub, paillier_get_rand_devurandom));
 
+    res->pub = *pub;
+    //*(*res).g = *g;
+    mpz_set(res->g, *get_blinding_factor(pub, paillier_get_rand_devurandom));
+    //mpz_clear(g);
     return res;
 
 }
@@ -67,10 +72,10 @@ nizkpk_paillier_enc( paillier_ciphertext_t* res,
 	return res;
 }
 
-mpz_t* 
-get_blinding_factor(paillier_pubkey_t* pub, paillier_get_rand_t get_rand){
+mpz_t* get_blinding_factor(paillier_pubkey_t* pub, paillier_get_rand_t get_rand)
+{
 
-    mpz_t* r;
+  mpz_t* r;
 	gmp_randstate_t rand;
 
 	/* pick random blinding factor */
@@ -81,9 +86,9 @@ get_blinding_factor(paillier_pubkey_t* pub, paillier_get_rand_t get_rand){
 		mpz_urandomb(r, rand, pub->bits);
 	while( mpz_cmp(r, pub->n) >= 0 );
 
-    gmp_randclear(rand);
+  gmp_randclear(rand);
 
-    return r;
+  return r;
 
 }
 
