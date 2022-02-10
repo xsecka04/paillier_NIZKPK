@@ -2,14 +2,6 @@
 #include <gmp.h>
 #include "paillier.h"
 #include "join.h"
-#include <unistd.h>
-#include <sys/socket.h>
-#include <stdlib.h>
-#include <netinet/in.h>
-#include <string.h>
-
-#define PORT 8080
-#define BUFFER_LENGTH 1000
 
 
 

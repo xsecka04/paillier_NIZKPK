@@ -10,16 +10,18 @@ Setup_SGM*
 nizkpk_setup_SGM(int param, paillier_prvkey_t* prv, paillier_pubkey_t* pub){
 
     Setup_SGM* res;
-    mpz_t g;
-    mpz_init(g);
-    mpz_init(res->g);
+    rand_element* r;
+    mpz_init(r->r);
+    //mpz_init(res->g);
     paillier_keygen(param, &pub, &prv, paillier_get_rand_devurandom);
 
     //mpz_set(g, get_blinding_factor(pub, paillier_get_rand_devurandom));
 
     res->pub = *pub;
     //*(*res).g = *g;
-    mpz_set(res->g, *get_blinding_factor(pub, paillier_get_rand_devurandom));
+    r = get_blinding_factor(pub, paillier_get_rand_devurandom);
+    *(*res).g = *r->r;
+    //mpz_set(res->g, get_blinding_factor(pub, paillier_get_rand_devurandom));
     //mpz_clear(g);
     return res;
 
@@ -32,7 +34,14 @@ e1* generate_e1(Setup_SGM* setup){
     char *message = "BigSecret";
 
     paillier_plaintext_t* sk;
-    mpz_init_set_ui(sk->m, get_blinding_factor(&setup->pub, paillier_get_rand_devurandom));
+
+    rand_element* r;
+    mpz_init(r->r);
+    r = get_blinding_factor(&setup->pub, paillier_get_rand_devurandom);
+    *(*sk).m = *r->r;
+
+    //*(*sk).m = **get_blinding_factor(&setup->pub, paillier_get_rand_devurandom);
+    //mpz_init_set_ui(sk->m, get_blinding_factor(&setup->pub, paillier_get_rand_devurandom));
 
     //Encryption of the message
     res->e1 = *nizkpk_paillier_enc(0, sk, setup);
@@ -72,19 +81,21 @@ nizkpk_paillier_enc( paillier_ciphertext_t* res,
 	return res;
 }
 
-mpz_t* get_blinding_factor(paillier_pubkey_t* pub, paillier_get_rand_t get_rand)
+rand_element* get_blinding_factor(paillier_pubkey_t* pub, paillier_get_rand_t get_rand)
 {
 
-  mpz_t* r;
+  rand_element* r;
+  //r = (rand_element*) malloc(sizeof(rand_element));
+
 	gmp_randstate_t rand;
 
 	/* pick random blinding factor */
 
-	mpz_init(r);
+	mpz_init(r->r);
  	init_rand(rand, get_rand, pub->bits / 8 + 1);
 	do
-		mpz_urandomb(r, rand, pub->bits);
-	while( mpz_cmp(r, pub->n) >= 0 );
+		mpz_urandomb(r->r, rand, pub->bits);
+	while( mpz_cmp(r->r, pub->n) >= 0 );
 
   gmp_randclear(rand);
 
