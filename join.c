@@ -42,15 +42,15 @@ nizkpk_setup_SGM(int param, Setup_SGM** setup, paillier_prvkey_t** prv, paillier
 
 
 
-e1* generate_e1(Setup_SGM* setup){
+e1* generate_e1(Setup_SGM** setup){
 
     e1* res;
     char *message = "BigSecret";
 
     paillier_plaintext_t* sk;
     //paillier_pubkey_t* p = &(*setup)->pub;
-    paillier_pubkey_t p = setup->pub;
-    rand_element* r = get_blinding_factor(&setup->pub, paillier_get_rand_devurandom);
+    //paillier_pubkey_t p = setup->pub;
+    rand_element* r = get_blinding_factor(&(*setup)->pub, paillier_get_rand_devurandom);
 
     //*(*sk).m = *r->r;
 

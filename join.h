@@ -35,6 +35,7 @@ nizkpk_paillier_enc( paillier_ciphertext_t* res,
 rand_element* 
 get_blinding_factor(paillier_pubkey_t* pub, paillier_get_rand_t get_rand);
 
-e1* generate_e1(Setup_SGM* setup);
+e1* generate_e1(Setup_SGM** setup);
+
 void 
 nizkpk_setup_SGM(int param, Setup_SGM** setup, paillier_prvkey_t** prv, paillier_pubkey_t** pub);
