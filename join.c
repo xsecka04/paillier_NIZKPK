@@ -5,7 +5,7 @@
 #include "paillier.h"
 #include "join.h"
 
-
+// e2 has real division
 Setup_SGM* 
 nizkpk_setup_SGM2(int param, paillier_prvkey_t* prv, paillier_pubkey_t* pub){
 
@@ -36,21 +36,60 @@ nizkpk_setup_SGM(int param, Setup_SGM** setup, paillier_prvkey_t** prv, paillier
     (*setup)->pub = **pub;
 
     rand_element* r = get_blinding_factor(*pub, paillier_get_rand_devurandom);
+    //mpz_mod(r->r, r->r, (*setup)->pub.n_squared);
     (*setup)->g = *r;
 
 }
 
 
 
-e1* generate_e1(Setup_SGM** setup){
+e1* generate_e1(Setup_SGM* setup, paillier_prvkey_t * prv){
 
     e1* res;
-    char *message = "BigSecret";
+    res = (e1*) malloc(sizeof(e1));
 
-    paillier_plaintext_t* sk;
-    //paillier_pubkey_t* p = &(*setup)->pub;
-    //paillier_pubkey_t p = setup->pub;
-    rand_element* r = get_blinding_factor(&(*setup)->pub, paillier_get_rand_devurandom);
+    //paillier_plaintext_t* sk;
+
+	  mpz_t r;
+    //mpz_init(r);
+    mpz_t x;
+    //mpz_init(x);
+
+    mpz_t two;
+    mpz_init(two);
+    mpz_set_ui(two, 2);
+
+    mpz_t q;
+    mpz_init(q);
+    mpz_set_ui(q, 10000);
+
+
+    mpz_t message;
+    mpz_init(message);
+    mpz_invert(message, two, (*setup).pub.n);
+    mpz_mul(message, message, (*setup).pub.n);
+    mpz_add(message, message, q);
+    mpz_mod(message, message, prv->lambda);
+
+    // Generate r
+    gmp_randstate_t rand;
+    init_rand(rand, paillier_get_rand_devurandom, (*setup).pub.bits / 8 + 1);
+    do
+      mpz_urandomb(r, rand, (*setup).pub.bits);
+    while( mpz_cmp(r, (*setup).pub.n) >= 0 );
+    mpz_mod(r, r, prv->lambda);
+
+    //Calculate e1
+    mpz_powm((*res).e1.c, (*setup).pub.n_plusone, message, (*setup).pub.n_squared);
+    mpz_powm(x, r, (*setup).pub.n, (*setup).pub.n_squared);
+
+    mpz_mul((*res).e1.c, (*res).e1.c, x);
+    mpz_mod((*res).e1.c, (*res).e1.c, (*setup).pub.n_squared);
+
+    mpz_clear(x);
+    mpz_clear(r);
+    gmp_randclear(rand);
+
 
     //*(*sk).m = *r->r;
 
