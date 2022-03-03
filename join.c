@@ -8,8 +8,13 @@ int main() {
 
     // Values init
 
-    int q_EC = 97;
-    int g_EC = 96;
+    //char* q_EC = "2523648240000001ba344d8000000007ff9f800000000010a10000000000000d";
+    char* q_EC = "16098B2CD";
+
+
+    //char* g_EC = "042523648240000001BA344D80000000086121000000000013A7000000000000120000000000000000000000000000000000000000000000000000000000000001";
+    char* g_EC = "7";
+
     int p_RSA = 101;
     int q_RSA = 103;
 
@@ -17,41 +22,17 @@ int main() {
     Setup_SGM setup;
     Manager_S m_secret;
     generate_nizkpk_setup(&setup, &m_secret, q_EC, g_EC, p_RSA, q_RSA);
+    gmp_printf("q: %Zd\n", setup.q_EC);
+    gmp_printf("gen: %Zd\n", setup.g_EC);
 
     E_1 e1 = generate_e1(&setup, &m_secret);
 
     Sender_S s_secret;
     E_2 e2 = generate_e2(&setup, &s_secret, &e1);
 
-
-    //BEGIN MGR_STEP 5
-    /* -----------------------------------------------------------------------*/
-
-    // Decryption
-
-    mpz_t dec;
-    mpz_init(dec);
-    mpz_powm(dec, e2.e2, m_secret.phi_n, setup.n2);
-    mpz_sub_ui(dec, dec, 1);
-    mpz_fdiv_q(dec, dec, setup.n);
-    mpz_mod(dec, dec, setup.n2);
-
-    mpz_t phi_inv;
-    mpz_init(phi_inv);
-    mpz_invert(phi_inv, m_secret.phi_n, setup.n);
-
-    mpz_mul(dec, dec, phi_inv);
-    mpz_mod(dec, dec, setup.n);
-    gmp_printf("decrypted e2: %Zd\n", dec);
-
-    mpz_t x;
-    mpz_init(x);
-    mpz_sub(x, dec, m_secret.n_half);
-    gmp_printf("x: %Zd\n", x);
+    Sig_star sig = decrypt_e2(&setup, &m_secret, &e2);
 
 
-    /* -----------------------------------------------------------------------*/
-    //END MGR_STEP 5
 
     //BEGIN SEND_STEP 6
     /* -----------------------------------------------------------------------*/
@@ -75,12 +56,11 @@ int main() {
     /* -----------------------------------------------------------------------*/
     //END SEND_STEP 6
 
-
-    if(mpz_cmp(dec, test) == 0){
+    if(mpz_cmp(sig.sig_star, test) == 0){
         printf("Test conducted successfully\n");
     }
     else{
-        printf("Test not conducted successfully\n");
+        printf("ERROR: Test NOT conducted successfully\n");
 
     }
 
