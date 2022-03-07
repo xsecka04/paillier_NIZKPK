@@ -6,6 +6,7 @@ typedef struct
 
 	mpz_t n;
     mpz_t n2;
+    mpz_t n_half;
 	mpz_t h;
     mpz_t g;
 
@@ -18,7 +19,6 @@ typedef struct
 
     mpz_t phi_n;
     mpz_t phi_n2;
-    mpz_t n_half;
 
     mpz_t r;
 
@@ -54,10 +54,11 @@ typedef struct
 
 } Sig_star;
 
+void primeFactors(mpz_t* phi_m, mpz_t* primes);
 
 void get_rand_seed( void* buf, int len);
 
-void generate_g(mpz_t* n2, mpz_t* ord, mpz_t* g);
+void generate_g(mpz_t* n2, mpz_t* phi, mpz_t* ord, mpz_t* g);
 
 void generate_r_from_group(mpz_t* mod, mpz_t* r);
 

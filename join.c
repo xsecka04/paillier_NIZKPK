@@ -8,15 +8,19 @@ int main() {
 
     // Values init
 
-    //char* q_EC = "2523648240000001ba344d8000000007ff9f800000000010a10000000000000d";
-    char* q_EC = "16098B2CD";
+    char* q_EC = "2523648240000001ba344d8000000007ff9f800000000010a10000000000000d";
+    //char* q_EC = "74";
+    //char* q_EC = "29";
 
 
-    //char* g_EC = "042523648240000001BA344D80000000086121000000000013A7000000000000120000000000000000000000000000000000000000000000000000000000000001";
-    char* g_EC = "7";
+    char* g_EC = "2523648240000001BA344D80000000086121000000000013A7000000000000120000000000000000000000000000000000000000000000000000000000000001";
+    //char* g_EC = "7";
+    //char* g_EC = "6";
 
-    int p_RSA = 101;
-    int q_RSA = 103;
+    int p_RSA = 3;
+    int q_RSA = 5;
+    //int p_RSA = 3971679581;
+    //int q_RSA = 2505093049;
 
 
     Setup_SGM setup;
@@ -41,16 +45,22 @@ int main() {
 
     mpz_t test;
     mpz_init(test);
-    mpz_add(test, m_secret.sk_m, s_secret.sk_i);
-    mpz_add(test, test, m_secret.n_half);
+
+    mpz_add(test, s_secret.sk_i, m_secret.sk_m);
     mpz_mul(test, test, s_secret.r1);
+    mpz_mod(test, test, setup.q_EC);
 
-    mpz_t test2;
-    mpz_init(test2);
-    mpz_mul(test2, setup.q_EC, s_secret.r2);
 
-    mpz_add(test, test, test2);
-    mpz_mod(test, test, setup.n);
+    //mpz_add(test, m_secret.sk_m, s_secret.sk_i);
+    //mpz_add(test, test, setup.n_half);
+    //mpz_mul(test, test, s_secret.r1);
+
+    //mpz_t test2;
+    //mpz_init(test2);
+    //mpz_mul(test2, setup.q_EC, s_secret.r2);
+
+    //mpz_add(test, test, test2);
+    //mpz_mod(test, test, setup.n);
     gmp_printf("test: %Zd\n", test);
 
     /* -----------------------------------------------------------------------*/

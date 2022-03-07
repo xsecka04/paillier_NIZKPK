@@ -23,32 +23,150 @@ get_rand_seed( void* buf, int len)
 	fclose(fp);
 }
 
+void primeFactors(mpz_t* phi_m, mpz_t* primes)
+{
+    mpz_t c;
+    mpz_init(c);
+    mpz_set_ui(c, 2);
 
-void generate_g(mpz_t* n2, mpz_t* ord, mpz_t* g) {
-    
-    unsigned long s;
-    gmp_randstate_t rand;
-    gmp_randinit_default(rand);
-    gmp_randseed_ui(rand, s);
+    mpz_t c_prev;
+    mpz_init(c_prev);
+
+    mpz_t n;
+    mpz_init(n);
+    mpz_set(n, *phi_m);
 
     mpz_t i;
     mpz_init(i);
-    mpz_set_ui(i, 1);
+
+    int iter = 0;
+
+    for(int i=0; i<10; i++){
+        mpz_init_set_ui(primes[i], 1);
+    }
+
+
+    while( mpz_cmp_d(n, 1) > 0)
+    {
+        mpz_mod(i, n, c);
+        
+        if(mpz_cmp_d(i, 0) == 0){
+            if(mpz_cmp(c, c_prev) != 0){
+                mpz_set(c_prev, c);
+                mpz_set(primes[iter], c);
+                if (iter == 9){
+                    break;
+                }
+                iter++;
+            }
+            mpz_divexact(n, n, c);
+        }
+        else mpz_add_ui(c, c, 1);
+    }
+
+    mpz_clear(c);
+    mpz_clear(c_prev);
+    mpz_clear(n);
+    mpz_clear(i);
+
+}
+
+void generate_g2(mpz_t* n, mpz_t* n2, mpz_t* phi, mpz_t* g) {
+
+
+    mpz_t i;
+    mpz_init(i);
+
+    mpz_t k;
+    mpz_init(k);
+
+    generate_r_from_group(n, &k);
+
+    mpz_powm(*g, k, *n, *n2);
+    gmp_printf("Generated G: %Zd\n", g);
+
+    mpz_powm(i, *g, *phi, *n2);
+    gmp_printf("G Assertion: %Zd\n", i);
+
+    mpz_clear(i);
+    mpz_clear(k);
+
+
+}
+
+
+void generate_g(mpz_t* n2, mpz_t* phi, mpz_t* ord, mpz_t* g) {
+    
+    int len = 512;
+    mpz_t s;
+	mpz_init(s);
+    void* buf;
+	buf = malloc(len);
+	get_rand_seed(buf, len);
+	mpz_import(s, len, 1, 1, 0, 0, buf);
+
+    gmp_randstate_t rand;
+    gmp_randinit_default(rand);
+    gmp_randseed(rand, s);
+
+    mpz_t i;
+    mpz_init(i);
+    mpz_set_ui(i, 528);
 
     mpz_t j;
     mpz_init(j);
 
+    mpz_t * factors;
+    factors = malloc(sizeof(mpz_t) * 10);
+
+    int isGen = 0;
+
+    primeFactors(phi, factors);
+    gmp_printf("Prime divisor of %Zd is: %Zd\n",*phi, factors[0]);
+    gmp_printf("Prime divisor of %Zd is: %Zd\n",*phi, factors[1]);
+    gmp_printf("Prime divisor of %Zd is: %Zd\n",*phi, factors[2]);
+    gmp_printf("Prime divisor of %Zd is: %Zd\n",*phi, factors[3]);
+    gmp_printf("Prime divisor of %Zd is: %Zd\n",*phi, factors[4]);
+
     do{
         mpz_urandomm(*g, rand, *n2);
-        gmp_printf("g: %Zd\n", *g);
-        mpz_powm(j, *g, *ord, *n2);
-        gmp_printf("j: %Zd\n", j);
-    }while( mpz_cmp(j, i) != 0 );
+        for(int i=0;i<10; i++){
+            if(mpz_cmp_ui(factors[i], 1) != 0){
+                mpz_divexact(j, *phi, factors[i]);
+                mpz_powm(j, *g, j, *n2);
+                gmp_printf("Testing %Zd ^ %Zd / %Zd mod %Zd = %Zd\n", *g, *phi, factors[i], *n2, j);
+
+            }
+            if (mpz_cmp_ui(j, 1) == 0){
+                break;
+            }
+
+        }
+
+        if ((mpz_cmp_ui(j, 1) != 0) && (mpz_cmp_ui(j, 0) != 0)){
+            isGen = 1;
+        }
+
+
+    }while( (isGen == 0) || (mpz_cmp_ui(*g, 0) == 0));
+    gmp_printf("Generated generator: %Zd\n",*g);
+
+    
+    mpz_powm(*g, *g, i, *n2);
+    gmp_printf("Generated G: %Zd\n",*g);
+
+
+    //do{
+    //    mpz_urandomm(*g, rand, *n2);
+    //    mpz_powm(j, *g, *ord, *n2);
+    //}while( mpz_cmp(j, i) != 0 );
+    //gmp_printf("Generated G using bruteforce: %Zd\n",*g);
+
+
+    //mpz_urandomm(*g, rand, *n2);
 
     mpz_clear(i);
     mpz_clear(j);
-
-    gmp_printf("g: %Zd\n", g);
 
     gmp_randclear(rand);
 
@@ -92,7 +210,7 @@ void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC, ch
 
 
 
-    //TODO: RSA params generation impl
+    //RSA params generation impl
     mpz_t p_n;
     mpz_init(p_n);
     mpz_set_ui(p_n, p_RSA);
@@ -100,12 +218,13 @@ void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC, ch
     mpz_init(q_n);
     mpz_set_ui(q_n, q_RSA);
 
-    
+/**********RSA GENERATION***********************/
+
     mpz_t q2;
     mpz_init(q2);
     mpz_pow_ui(q2, setup->q_EC, 2);
 
-    size_t size = mpz_sizeinbase(q2, 2);
+    size_t size = mpz_sizeinbase(q2, 2) + 1;
     gmp_printf("q2: %Zd\n", q2);
     printf("size of q2 in bits: %zu\n", size/2);
 
@@ -144,15 +263,17 @@ void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC, ch
     gmp_randclear(rand);
     mpz_clear(s);
     
+/***********************************************/
 
-
-    //mpz_init(setup->n);
+    mpz_init(setup->n);
+    mpz_mul(setup->n, p_n, q_n);
 
 
 
     //Secrets impl
     mpz_init(m_secret->sk_m);
     generate_r_from_group(&setup->q_EC, &m_secret->sk_m);
+    //mpz_set_ui(m_secret->sk_m, 40);
 
 
     mpz_inits(setup->g, setup->h, setup->n2, m_secret->phi_n, NULL);
@@ -163,6 +284,9 @@ void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC, ch
     mpz_sub_ui(q_n, q_n, 1);
     mpz_mul(m_secret->phi_n, p_n, q_n);
 
+    gmp_printf("n2: %Zd\n",setup->n2);
+    gmp_printf("phi_n: %Zd\n", m_secret->phi_n);
+
     //TODO: Seems redundant
     mpz_init(m_secret->phi_n2);
     mpz_mul(m_secret->phi_n2, m_secret->phi_n, setup->n);
@@ -171,13 +295,18 @@ void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC, ch
     mpz_init(two);
     mpz_set_ui(two, 2);
 
-    mpz_init(m_secret->n_half);
-    mpz_fdiv_q(m_secret->n_half, setup->n, two);
-    gmp_printf("n_half: %Zd\n", m_secret->n_half);
+    mpz_init(setup->n_half);
+    mpz_fdiv_q(setup->n_half, setup->n, two);
+    gmp_printf("n_half: %Zd\n", setup->n_half);
+    gmp_printf("phi_n2: %Zd\n", m_secret->phi_n2);
 
     
     //G generation
-    generate_g(&setup->n2, &m_secret->phi_n, &setup->g);
+    //generate_g(&setup->n2, &m_secret->phi_n2, &m_secret->phi_n, &setup->g);
+
+    generate_g2(&setup->n, &setup->n2, &m_secret->phi_n, &setup->g);
+
+    //mpz_set_ui(setup->g, 157318);
 
     mpz_clears(two, p_n, q_n, NULL);
 
@@ -195,13 +324,14 @@ E_1 generate_e1(Setup_SGM* setup, Manager_S* m_secret){
     //Random variables impl
     mpz_init(m_secret->r);
     generate_r_from_group(&m_secret->phi_n, &m_secret->r);
+    //mpz_set_ui(m_secret->r, 10);
 
     mpz_t e11;
     mpz_init(e11);
 
     //e1 calc
     mpz_init(e1.e1);
-    mpz_add(e1.e1, m_secret->n_half, m_secret->sk_m);
+    mpz_add(e1.e1, setup->n_half, m_secret->sk_m);
     mpz_powm(e1.e1, setup->h, e1.e1, setup->n2);
     mpz_powm(e11, setup->g, m_secret->r, setup->n2);
     mpz_mul(e1.e1, e1.e1, e11);
@@ -227,17 +357,29 @@ E_2 generate_e2(Setup_SGM* setup, Sender_S* s_secret, E_1* e1){
     generate_r_from_group(&setup->q_EC, &s_secret->r2);
     generate_r_from_group(&setup->n, &s_secret->r_bar);
     
+    //mpz_set_ui(s_secret->r1, 13);
+   // mpz_set_ui(s_secret->r2, 17);
+   // mpz_set_ui(s_secret->r_bar, 11);
+    //mpz_set_ui(s_secret->sk_i, 22);
+
     // e2 calc
     mpz_init(e2.e2);
 
     mpz_t e22, e23;
     mpz_inits(e22, e23, NULL);
 
-    mpz_powm(e23, e1->e1, s_secret->r1, setup->n2);
+    mpz_powm(e23, setup->h, setup->n_half, setup->n2);
+    mpz_invert(e23, e23, setup->n2);
+    mpz_mul(e23, e1->e1, e23);
+    mpz_powm(e23, e23, s_secret->r1, setup->n2);
 
-    mpz_mul(e2.e2, s_secret->sk_i, s_secret->r1);
-    mpz_mul(e22, s_secret->r2, setup->q_EC);
-    mpz_add(e2.e2, e2.e2, e22);
+    gmp_printf("e2 prelim 2 multiplied w mod n2: %Zd\n", e23);
+
+
+    mpz_mul(e2.e2, s_secret->sk_i, s_secret->r1); //needed
+    mpz_mul(e22, s_secret->r2, setup->q_EC); //needed
+    mpz_add(e2.e2, e2.e2, e22); // needed
+    mpz_add(e2.e2, e2.e2, setup->n_half); // new
     mpz_powm(e2.e2, setup->h, e2.e2, setup->n2);
 
     mpz_powm(e22, setup->g, s_secret->r_bar, setup->n2);
@@ -277,12 +419,15 @@ Sig_star decrypt_e2(Setup_SGM* setup, Manager_S* m_secret, E_2* e2){
 
     mpz_mul(sig_star.sig_star, sig_star.sig_star, phi_inv);
     mpz_mod(sig_star.sig_star, sig_star.sig_star, setup->n);
-    gmp_printf("decrypted e2: %Zd\n", sig_star.sig_star);
+    mpz_sub(sig_star.sig_star, sig_star.sig_star, setup->n_half);
+    mpz_mod(sig_star.sig_star, sig_star.sig_star, setup->n);
+    mpz_mod(sig_star.sig_star, sig_star.sig_star, setup->q_EC);
+    gmp_printf("decrypted x: %Zd\n", sig_star.sig_star);
 
-    mpz_t x;
-    mpz_init(x);
-    mpz_sub(x, sig_star.sig_star, m_secret->n_half);
-    gmp_printf("x: %Zd\n", x);
+    //mpz_t x;
+    //mpz_init(x);
+    //mpz_sub(x, sig_star.sig_star, setup->n_half);
+    //gmp_printf("x: %Zd\n", x);
 
     return sig_star;
 
