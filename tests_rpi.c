@@ -26,8 +26,8 @@ int main() {
     //int p_RSA = 3971679581;
     //int q_RSA = 2505093049;
 
-    clock_t start, end, setup_stop, join_start;
-    double cpu_time_used, cpu_time_used_setup, cpu_time_used_join;
+    clock_t start, end, setup_stop, join_start, rpi_start, rpi_stop, rpi_total;
+    double cpu_time_used, cpu_time_used_setup, cpu_time_used_join, cpu_time_used_join_sender;
 
     start = clock();
 
@@ -50,10 +50,12 @@ int main() {
 
     for(int i=0;i<TESTSNO;i++){
         e1s[i] = generate_e1(&setup, &m_secret);
+        rpi_start = clock();
         e2s[i] = generate_e2(&setup, &s_secrets[i], &e1s[i], kappa);
+        rpi_stop = clock();
         sigs[i] = decrypt_e2(&setup, &m_secret, &e2s[i]);
         verify = verify_sig(&sigs[i], &m_secret, &s_secrets[i], &setup);
-
+        rpi_total += rpi_stop - rpi_start;
         if(verify == 1){
             printf("ERROR: Test NOT conducted successfully\n");
         }
@@ -64,9 +66,11 @@ int main() {
     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
     cpu_time_used_setup = ((double) (setup_stop - start)) / CLOCKS_PER_SEC;
     cpu_time_used_join = ((double) (end - setup_stop)) / CLOCKS_PER_SEC;
+    cpu_time_used_join_sender = ((double) rpi_total) / CLOCKS_PER_SEC;
 
     printf("Elapsed time after establishing %d sender(s): %f ms\n", TESTSNO, cpu_time_used*1000);
     printf("Elapsed time for Setup_SGM algorithm: %f ms\n", cpu_time_used_setup*1000);
     printf("Elapsed time for Join algorithm : %f ms\n", cpu_time_used_join*1000);
+    printf("Elapsed time for Join algorithm on Sender : %f ms\n", cpu_time_used_join_sender*1000);
 
 }

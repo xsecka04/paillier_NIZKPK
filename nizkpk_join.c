@@ -339,26 +339,26 @@ void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC, ch
     //gmp_printf("phi_n: %Zd\n", m_secret->phi_n);
 
     //TODO: Seems redundant
-    mpz_init(m_secret->phi_n2);
-    mpz_mul(m_secret->phi_n2, m_secret->phi_n, setup->n);
+    //mpz_init(m_secret->phi_n2);
+    //mpz_mul(m_secret->phi_n2, m_secret->phi_n, setup->n);
 
     mpz_t two;
     mpz_init(two);
     mpz_set_ui(two, 2);
 
     mpz_init(setup->n_half);
-    mpz_invert(setup->n_half, two, m_secret->phi_n2);
+    //mpz_invert(setup->n_half, two, m_secret->phi_n2);
     gmp_printf("n: %Zd\n", setup->n);
     gmp_printf("p: %Zd\n", p_n);
     gmp_printf("q: %Zd\n", q_n);
 
-    gmp_printf("n_half: %Zd\n", setup->n_half);
+    //gmp_printf("n_half: %Zd\n", setup->n_half);
 
-    mpz_mul(setup->n_half, setup->n, setup->n_half);
-    gmp_printf("n_half: %Zd\n", setup->n_half);
+    //mpz_mul(setup->n_half, setup->n, setup->n_half);
+    //gmp_printf("n_half: %Zd\n", setup->n_half);
 
-    mpz_mod(setup->n_half,setup->n_half, setup->n);
-    //mpz_fdiv_q(setup->n_half, setup->n, two);
+    //mpz_mod(setup->n_half,setup->n_half, setup->n);
+    mpz_fdiv_q(setup->n_half, setup->n, two);
     gmp_printf("n_half: %Zd\n", setup->n_half);
 
     
