@@ -1,10 +1,26 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <gmp.h>
-#include "nizkpk_join.h"
+#include "../lib/nizkpk_join.h"
+#include <openssl/bn.h>
 
-void
-get_rand_seed( void* buf, int len)
+#define kappa 3
+
+const char* SETUP_JSON_OUT = "{\n\t\"n\": \"%s\",\n\t\"g\": \"%s\",\n\t\"h\": \"%s\",\n\t\"n_goth\": \"%s\",\n\t\"g_goth\": \"%s\",\n\t\"h_goth\": \"%s\",\n\t\"q_EC\": \"%s\"\n}";
+const char* E1_JSON_OUT = "{\n\t\"e_1\": \"%s\",\n\t\"c_goth\": \"%s\"\n}";
+const char* E2_JSON_OUT = "{\n\t\"e_2\": \"%s\",\n\t\"c2_goth\": \"%s\"\n}";
+const char* SIG_STAR_JSON_OUT = "{\n\t\"sig_star\": \"%s\"\n}";
+
+
+
+const char* SETUP_JSON_IN = "{\n\t\"n\": \"%[^\"]\",\n\t\"g\": \"%[^\"]\",\n\t\"h\": \"%[^\"]\",\n\t\"n_goth\": \"%[^\"]\",\n\t\"g_goth\": \"%[^\"]\",\n\t\"h_goth\": \"%[^\"]\",\n\t\"q_EC\": \"%[^\"]\"\n}";
+const char* E1_JSON_IN = "{\n\t\"e_1\": \"%[^\"]\",\n\t\"c_goth\": \"%[^\"]\"\n}";
+const char* E2_JSON_IN = "{\n\t\"e_2\": \"%[^\"]\",\n\t\"c2_goth\": \"%[^\"]\"\n}";
+const char* SIG_STAR_JSON_IN = "{\n\t\"sig_star\": \"%[^\"]\"\n}";
+
+
+void get_rand_seed(void* buf, int len)
 {
 	FILE* fp;
 	void* p;
@@ -85,7 +101,6 @@ void generate_g(mpz_t* n, mpz_t* n2, mpz_t* phi, mpz_t* g) {
         generate_r_from_group(n, &k);
         mpz_powm(*g, k, *n, *n2);
         mpz_powm(i, *g, *phi, *n2);
-
     }while(mpz_cmp_ui(i, 1) != 0);
     //gmp_printf("G : %Zd\n", *g);
     //gmp_printf("G Assertion: %Zd\n", i);
@@ -118,7 +133,7 @@ void generate_g_bruteforce(mpz_t* n2, mpz_t* phi, mpz_t* ord, mpz_t* g) {
     mpz_t j;
     mpz_init(j);
 
-    mpz_t * factors;
+    mpz_t* factors;
     factors = malloc(sizeof(mpz_t) * 10);
 
     int isGen = 0;
@@ -219,9 +234,7 @@ void generate_r_from_bitlenght(size_t length, mpz_t* r){
 
 }
 
-void generate_RSA(mpz_t* p, mpz_t* q, mpz_t* n, size_t size, int kappa){
-
-    /**********RSA GENERATION***********************/
+void generate_RSA(mpz_t* p, mpz_t* q, mpz_t* n, size_t size){
 
     int len = 512;
 
@@ -237,7 +250,7 @@ void generate_RSA(mpz_t* p, mpz_t* q, mpz_t* n, size_t size, int kappa){
     gmp_randseed(rand, s);
     
     size *= 3*kappa;
-    //printf("size of RSA: %zu\n", size);
+    printf("size of RSA: %zu\n", size);
 
 	do
 	{
@@ -261,22 +274,46 @@ void generate_RSA(mpz_t* p, mpz_t* q, mpz_t* n, size_t size, int kappa){
     mpz_clear(s);
     free(buf);
     
-    /***********************************************/
+}
+
+void generate_RSA_SSL(mpz_t* p, mpz_t* q, mpz_t* n, size_t size){
+
+    BIGNUM *p_big = BN_new();
+    BIGNUM *q_big = BN_new();
+    BIGNUM *n_big = BN_new();
+
+    size *= 3*kappa;
+
+    clock_t start, end;
+    double cpu_time_used;
+
+    BN_CTX *ctx = BN_CTX_secure_new();
+    BN_generate_prime_ex2(p_big, size/2+1, 0, NULL, NULL, NULL, ctx);
+    BN_generate_prime_ex2(q_big, size/2+1, 0, NULL, NULL, NULL, ctx);
+
+    char* p_hex = BN_bn2hex(p_big);
+    char* q_hex = BN_bn2hex(q_big);
+
+    mpz_set_str(*p, p_hex, 16);
+    mpz_set_str(*q, q_hex, 16);
+
+    mpz_mul(*n, *p, *q);
+
+    BN_free(p_big);
+    BN_free(q_big);
+    BN_free(n_big);
+    BN_CTX_free(ctx);
+    OPENSSL_free(p_hex);
+    OPENSSL_free(q_hex);
 
 }
 
-
-void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC, char* g_EC, int kappa){
+void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC){
     
-    //BEGIN MGR_SETUP
-    /* -----------------------------------------------------------------------*/
-
     //EC params
-    mpz_inits(setup->q_EC, setup->g_EC, NULL);
+    mpz_inits(setup->q_EC, NULL);
     //mpz_set_ui(setup->q_EC, q_EC);
     mpz_set_str(setup->q_EC, q_EC, 16);
-    //mpz_set_ui(setup->g_EC, g_EC);
-    mpz_set_str(setup->g_EC, g_EC, 16);
 
 
 
@@ -297,9 +334,9 @@ void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC, ch
     //printf("size of q2 in bits: %zu\n", size/2);
     
     mpz_init(setup->n);
-    generate_RSA(&p_n, &q_n, &setup->n, size, kappa);
+    generate_RSA_SSL(&p_n, &q_n, &setup->n, size);
 
-    mpz_inits(setup->n_goth, setup->h_goth, setup->g_goth, m_secret->phi_n_dash, NULL);
+    mpz_inits(setup->n_goth, setup->h_goth, setup->g_goth, m_secret->phi_n_goth, NULL);
 
     mpz_t p_ng;
     mpz_init(p_ng);
@@ -310,13 +347,20 @@ void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC, ch
     mpz_init(rand_goth);
 
     //Gothics
-    generate_RSA(&p_ng, &q_ng, &setup->n_goth, size, kappa);
-    mpz_add_ui(setup->h_goth, setup->n_goth, 1);
+    generate_RSA_SSL(&p_ng, &q_ng, &setup->n_goth, size);
+    //mpz_add_ui(setup->h_goth, setup->n_goth, 1);
     //gmp_printf("n_goth: %Zd\n", &setup->n_goth);
-    generate_r_from_group(&setup->n_goth, &rand_goth);
+    generate_r_from_group(&setup->n_goth, &setup->h_goth);
+
+    mpz_sub_ui(p_ng, p_ng, 1);
+    mpz_sub_ui(q_ng, q_ng, 1);
+    mpz_mul(m_secret->phi_n_goth, p_ng, q_ng);
+
+    generate_r_from_group(&m_secret->phi_n_goth, &rand_goth);
 
     mpz_powm(setup->g_goth, setup->h_goth, rand_goth, setup->n_goth);
-    mpz_mul(m_secret->phi_n_dash, p_ng, q_ng);
+
+
 
     //Secrets impl
     mpz_init(m_secret->sk_m);
@@ -338,28 +382,17 @@ void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC, ch
     //gmp_printf("n2: %Zd\n",setup->n2);
     //gmp_printf("phi_n: %Zd\n", m_secret->phi_n);
 
-    //TODO: Seems redundant
-    //mpz_init(m_secret->phi_n2);
-    //mpz_mul(m_secret->phi_n2, m_secret->phi_n, setup->n);
-
     mpz_t two;
     mpz_init(two);
     mpz_set_ui(two, 2);
 
     mpz_init(setup->n_half);
-    //mpz_invert(setup->n_half, two, m_secret->phi_n2);
-    gmp_printf("n: %Zd\n", setup->n);
-    gmp_printf("p: %Zd\n", p_n);
-    gmp_printf("q: %Zd\n", q_n);
+    //gmp_printf("n: %Zd\n", setup->n);
+    //gmp_printf("p: %Zd\n", p_n);
+    //gmp_printf("q: %Zd\n", q_n);
 
-    //gmp_printf("n_half: %Zd\n", setup->n_half);
-
-    //mpz_mul(setup->n_half, setup->n, setup->n_half);
-    //gmp_printf("n_half: %Zd\n", setup->n_half);
-
-    //mpz_mod(setup->n_half,setup->n_half, setup->n);
     mpz_fdiv_q(setup->n_half, setup->n, two);
-    gmp_printf("n_half: %Zd\n", setup->n_half);
+    //gmp_printf("n_half: %Zd\n", setup->n_half);
 
     
     //G generation
@@ -369,18 +402,12 @@ void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC, ch
     printf("size of g: %zu\n", mpz_sizeinbase(setup->g, 2));
     printf("size of h: %zu\n", mpz_sizeinbase(setup->h, 2));
 
-    mpz_clears(two, p_n, q_n, NULL);
-
-
-    /* -----------------------------------------------------------------------*/
-    //END MGR_SETUP
+    mpz_clears(two, p_n, q_n, p_ng, q_ng, q2, rand_goth, NULL);
 
 }
 
 E_1 generate_e1(Setup_SGM* setup, Manager_S* m_secret){
 
-    //BEGIN MGR_STEP 1
-    /* -----------------------------------------------------------------------*/
     E_1 e1;
     //Random variables impl
     mpz_init(m_secret->r);
@@ -401,7 +428,7 @@ E_1 generate_e1(Setup_SGM* setup, Manager_S* m_secret){
     //gmp_printf("e1: %Zd\n", e1.e1);
 
     mpz_inits(m_secret->r_dash, e1.c_goth, m_secret->r_dash, NULL);
-    generate_r_from_group(&m_secret->phi_n_dash, &m_secret->r_dash);
+    generate_r_from_group(&m_secret->phi_n_goth, &m_secret->r_dash);
 
 
     mpz_powm(e1.c_goth, setup->g_goth, m_secret->sk_m, setup->n_goth);
@@ -409,17 +436,14 @@ E_1 generate_e1(Setup_SGM* setup, Manager_S* m_secret){
     mpz_mul(e1.c_goth, e1.c_goth, e11);
     mpz_mod(e1.c_goth, e1.c_goth, setup->n_goth);
 
+    mpz_clear(e11);
 
     return e1;
 
-    /* -----------------------------------------------------------------------*/
-    //END MGR_STEP 1
 }
 
-E_2 generate_e2(Setup_SGM* setup, Sender_S* s_secret, E_1* e1, int kappa){
+E_2 generate_e2(Setup_SGM* setup, Sender_S* s_secret, E_1* e1){
 
-    //BEGIN SEND_STEP 3
-    /* -----------------------------------------------------------------------*/
     E_2 e2;
 
     //Secrets impl
@@ -454,7 +478,67 @@ E_2 generate_e2(Setup_SGM* setup, Sender_S* s_secret, E_1* e1, int kappa){
     mpz_mul(e23, e1->e1, e23);
     mpz_powm(e23, e23, s_secret->r1, setup->n2);
 
-    //gmp_printf("e2 prelim 2 multiplied w mod n2: %Zd\n", e23);
+
+    mpz_mul(e2.e2, s_secret->sk_i, s_secret->r1);
+    mpz_mul(e22, s_secret->r2, setup->q_EC);
+    mpz_add(e2.e2, e2.e2, e22);
+    mpz_add(e2.e2, e2.e2, setup->n_half);
+    mpz_powm(e2.e2, setup->h, e2.e2, setup->n2);
+
+    mpz_powm(e22, setup->g, s_secret->r_bar, setup->n2);
+    
+    mpz_mul(e2.e2, e2.e2, e23);
+    mpz_mul(e2.e2, e2.e2, e22);
+    mpz_mod(e2.e2, e2.e2, setup->n2);
+    //gmp_printf("e2: %Zd\n", e2.e2);
+
+    mpz_inits(e2.c2_goth, NULL);
+    mpz_powm(e2.c2_goth, setup->g_goth, s_secret->sk_i, setup->n_goth);
+    mpz_powm(e22, setup->h_goth, s_secret->sk_i, setup->n_goth);
+    mpz_mul(e2.c2_goth, e2.c2_goth, e22);
+    mpz_mod(e2.c2_goth, e2.c2_goth, setup->n_goth);
+
+    mpz_clears(e22, e23, NULL);
+
+    return e2;
+
+}
+
+E_2 generate_e2_parallel(Setup_SGM* setup, Sender_S* s_secret, E_1* e1){
+
+    E_2 e2;
+
+    //Secrets impl
+    mpz_inits(s_secret->sk_i, s_secret->r1, s_secret->r2, s_secret->r_bar, NULL);
+
+
+    size_t r2_size = mpz_sizeinbase(setup->q_EC, 2)*kappa;
+    size_t rbar_size = mpz_sizeinbase(setup->n_goth, 2)*kappa;
+
+
+    generate_r_from_group(&setup->q_EC, &s_secret->sk_i);
+    generate_r_from_group(&setup->q_EC, &s_secret->r1);
+    generate_r_from_bitlenght(r2_size, &s_secret->r2);
+    generate_r_from_bitlenght(r2_size, &s_secret->r_bar);
+    generate_r_from_group(&setup->n, &s_secret->r_bar);
+
+
+    //gmp_printf("S secrets: Ski=%Zd, r1=%Zd, r2=%Zd, rbar=%Zd \n", s_secret->sk_i, s_secret->r1, s_secret->r2, s_secret->r_bar);
+    //mpz_set_ui(s_secret->r1, 13);
+    //mpz_set_ui(s_secret->r2, 17);
+    //mpz_set_ui(s_secret->r_bar, 11);
+    //mpz_set_ui(s_secret->sk_i, 22);
+
+    // e2 calc
+    mpz_init(e2.e2);
+
+    mpz_t e22, e23;
+    mpz_inits(e22, e23, NULL);
+
+    mpz_powm(e23, setup->h, setup->n_half, setup->n2);
+    mpz_invert(e23, e23, setup->n2);
+    mpz_mul(e23, e1->e1, e23);
+    mpz_powm(e23, e23, s_secret->r1, setup->n2);
 
 
     mpz_mul(e2.e2, s_secret->sk_i, s_secret->r1);
@@ -481,15 +565,12 @@ E_2 generate_e2(Setup_SGM* setup, Sender_S* s_secret, E_1* e1, int kappa){
     mpz_clears(e22, e23, NULL);
 
     return e2;
-    /* -----------------------------------------------------------------------*/
-    //END SEND_STEP 3
 
 }
 
+
 Sig_star decrypt_e2(Setup_SGM* setup, Manager_S* m_secret, E_2* e2){
 
-    //BEGIN MGR_STEP 5
-    /* -----------------------------------------------------------------------*/
 
     Sig_star sig_star;
 
@@ -512,21 +593,18 @@ Sig_star decrypt_e2(Setup_SGM* setup, Manager_S* m_secret, E_2* e2){
     mpz_mod(sig_star.sig_star, sig_star.sig_star, setup->q_EC);
     //gmp_printf("decrypted x: %Zd\n", sig_star.sig_star);
 
+    mpz_clear(phi_inv);
+
 
 
 
     return sig_star;
-
-    /* -----------------------------------------------------------------------*/
-    //END MGR_STEP 5
 
 }
 
 
 int verify_sig(Sig_star* sig, Manager_S* m_secret, Sender_S* s_secret, Setup_SGM* setup){
 
-    //BEGIN SEND_STEP 6
-    /* -----------------------------------------------------------------------*/
 
     mpz_t test;
     mpz_init(test);
@@ -547,8 +625,179 @@ int verify_sig(Sig_star* sig, Manager_S* m_secret, Sender_S* s_secret, Setup_SGM
         return 1;
     }
 
-    /* -----------------------------------------------------------------------*/
-    //END SEND_STEP 6
+}
+
+int JSON_serialize_Setup_par(Setup_SGM* setup){
+
+    FILE* fp;
+    fp = fopen("par.json", "w+");
+
+    if(fp == NULL){
+        return 1;
+    }
+
+    fprintf(fp, SETUP_JSON_OUT, mpz_get_str(NULL, 16, setup->n), mpz_get_str(NULL, 16, setup->g), 
+            mpz_get_str(NULL, 16, setup->h), mpz_get_str(NULL, 16, setup->n_goth), mpz_get_str(NULL, 16, setup->g_goth), 
+            mpz_get_str(NULL, 16, setup->h_goth), mpz_get_str(NULL, 16, setup->q_EC));
+    
+    fclose(fp);
+
+    return 0;
+}
+
+int JSON_serialize_e1(E_1* e1){
+
+    FILE* fp;
+    fp = fopen("e1.json", "w+");
+
+    if(fp == NULL){
+        return 1;
+    }
+
+    fprintf(fp, E1_JSON_OUT, mpz_get_str(NULL, 16, e1->e1), mpz_get_str(NULL, 16, e1->c_goth));
+    
+    fclose(fp);
+    
+    return 0;
+}
+
+int JSON_serialize_e2(E_2* e2){
+
+    FILE* fp;
+    fp = fopen("e2.json", "w+");
+
+    if(fp == NULL){
+        return 1;
+    }
+
+    fprintf(fp, E2_JSON_OUT, mpz_get_str(NULL, 16, e2->e2), mpz_get_str(NULL, 16, e2->c2_goth));
+    
+    fclose(fp);
+    return 0;
+}
+
+int JSON_serialize_sig_star(Sig_star* sig_star){
+
+    FILE* fp;
+    fp = fopen("sig_star.json", "w+");
+
+    if(fp == NULL){
+        return 1;
+    }
+
+    fprintf(fp, SIG_STAR_JSON_OUT, mpz_get_str(NULL, 16, sig_star->sig_star));
+    
+    fclose(fp);
+    return 0;
+}
+
+
+int JSON_deserialize_Setup_par(Setup_SGM* setup){
+
+    char n[6000];
+    char g[10000];
+    char h[6000];
+    char n_g[6000];
+    char h_g[6000];
+    char g_g[6000];
+    char q_EC[500];
+
+    FILE* fp;
+    fp = fopen("par.json", "r");
+
+    if(fp == NULL){
+        return 1;
+    }
+
+    fscanf(fp, SETUP_JSON_IN, n, g, h, n_g, h_g, g_g, q_EC);
+
+    mpz_init_set_str(setup->n, n, 16);
+    mpz_init_set_str(setup->g, g, 16);
+    mpz_init_set_str(setup->h, h, 16);
+    mpz_init_set_str(setup->n_goth, n_g, 16);
+    mpz_init_set_str(setup->g_goth, h_g, 16);
+    mpz_init_set_str(setup->h_goth, g_g, 16);
+    mpz_init_set_str(setup->q_EC, q_EC, 16);
+
+    mpz_init(setup->n2);
+    mpz_mul(setup->n2, setup->n, setup->n);
+    
+    mpz_t two;
+    mpz_init(two);
+    mpz_set_ui(two, 2);
+
+    mpz_init(setup->n_half);
+    mpz_fdiv_q(setup->n_half, setup->n, two);
+
+    fclose(fp);
+    return 0;
 
 }
+
+
+int JSON_deserialize_e1(E_1* e1){
+
+    char e1c[6000];
+    char c_g[6000];
+    FILE* fp;
+    fp = fopen("e1.json", "r");
+
+    if(fp == NULL){
+        return 1;
+    }
+
+
+    fscanf(fp, E1_JSON_IN, e1c, c_g);
+
+    mpz_init_set_str(e1->e1, e1c, 16);
+    mpz_init_set_str(e1->c_goth, c_g, 16);
+
+    fclose(fp);
+    return 0;
+
+}
+
+int JSON_deserialize_e2(E_2* e2){
+
+    char e2c[6000];
+    char c2_g[6000];
+    FILE* fp;
+    fp = fopen("e2.json", "r");
+
+    if(fp == NULL){
+        return 1;
+    }
+
+
+    fscanf(fp, E2_JSON_IN, e2c, c2_g);
+
+    mpz_init_set_str(e2->e2, e2c, 16);
+    mpz_init_set_str(e2->c2_goth, c2_g, 16);
+
+    fclose(fp);
+    return 0;
+
+}
+
+int JSON_deserialize_sig_star(Sig_star* sig_star){
+
+    char sig[6000];
+    FILE* fp;
+    fp = fopen("sig_star.json", "r");
+
+    if(fp == NULL){
+        return 1;
+    }
+
+
+    fscanf(fp, SIG_STAR_JSON_IN, sig);
+
+    mpz_init_set_str(sig_star->sig_star, sig, 16);
+
+    fclose(fp);
+    return 0;
+
+}
+
+
 

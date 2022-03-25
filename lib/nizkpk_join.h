@@ -2,7 +2,6 @@
 typedef struct
 {
     mpz_t q_EC;   
-    mpz_t g_EC;   
 
 	mpz_t n;
     mpz_t n2;
@@ -25,8 +24,7 @@ typedef struct
     mpz_t sk_m;
 
     mpz_t phi_n;
-    mpz_t phi_n_dash;
-    mpz_t phi_n2; //Redundant
+    mpz_t phi_n_goth;
 
     mpz_t r;
     mpz_t r_dash;
@@ -70,20 +68,30 @@ typedef struct
 
 } Sig_star;
 
-void primeFactors(mpz_t* phi_m, mpz_t* primes);
-
-void get_rand_seed( void* buf, int len);
-
-void generate_g(mpz_t* n2, mpz_t* phi, mpz_t* ord, mpz_t* g);
-
 void generate_r_from_group(mpz_t* mod, mpz_t* r);
 
-void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC, char* g_EC, int kappa);
+void generate_nizkpk_setup(Setup_SGM* setup, Manager_S* m_secret, char* q_EC);
 
 E_1 generate_e1(Setup_SGM* setup, Manager_S* m_secret);
 
-E_2 generate_e2(Setup_SGM* setup, Sender_S* s_secret, E_1* e1, int kappa);
+E_2 generate_e2(Setup_SGM* setup, Sender_S* s_secret, E_1* e1);
 
 Sig_star decrypt_e2(Setup_SGM* setup, Manager_S* m_secret, E_2* e2);
 
 int verify_sig(Sig_star* sig, Manager_S* m_secret, Sender_S* s_secret, Setup_SGM* setup);
+
+int JSON_serialize_Setup_par(Setup_SGM* setup);
+
+int JSON_serialize_e1(E_1* e1);
+
+int JSON_serialize_e2(E_2* e2);
+
+int JSON_serialize_sig_star(Sig_star* sig_star);
+
+int JSON_deserialize_Setup_par(Setup_SGM* setup);
+
+int JSON_deserialize_e1(E_1* e1);
+
+int JSON_deserialize_e2(E_2* e2);
+
+int JSON_deserialize_sig_star(Sig_star* sig_star);
