@@ -4,7 +4,7 @@
 #include "lib/nizkpk_join.h"
 #include <time.h>
 
-#define TESTSNO 100
+#define TESTSNO 1
 
 double mean(double arr[10]){
 

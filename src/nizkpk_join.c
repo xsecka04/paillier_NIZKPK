@@ -288,8 +288,8 @@ void generate_RSA_SSL(mpz_t* p, mpz_t* q, mpz_t* n, size_t size){
     double cpu_time_used;
 
     BN_CTX *ctx = BN_CTX_secure_new();
-    BN_generate_prime_ex2(p_big, size/2+1, 0, NULL, NULL, NULL, ctx);
-    BN_generate_prime_ex2(q_big, size/2+1, 0, NULL, NULL, NULL, ctx);
+    BN_generate_prime_ex2(p_big, size/2+1, 1, NULL, NULL, NULL, ctx);
+    BN_generate_prime_ex2(q_big, size/2+1, 1, NULL, NULL, NULL, ctx);
 
     char* p_hex = BN_bn2hex(p_big);
     char* q_hex = BN_bn2hex(q_big);
