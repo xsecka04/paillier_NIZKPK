@@ -41,7 +41,11 @@ int main() {
             Setup_SGM setup;
             Manager_S m_secret;
             generate_nizkpk_setup(&setup, &m_secret, q_EC);
-        
+
+            JSON_serialize_Setup_par(&setup);
+            Setup_SGM setup2;
+            JSON_deserialize_Setup_par(&setup2);
+
             setup_stop = clock();
 
             Sender_S s_secrets[TESTSNO];
@@ -51,10 +55,21 @@ int main() {
 
             for(int i=0;i<TESTSNO;i++){
                 e1s[i] = generate_e1(&setup, &m_secret);
+
+                JSON_serialize_e1(&e1s[i]);
+                E_1 e11;
+                JSON_deserialize_e1(&e11);
+
                 rpi_start = clock();
-                e2s[i] = generate_e2(&setup, &s_secrets[i], &e1s[i]);
+                e2s[i] = generate_e2(&setup2, &s_secrets[i], &e11);
+
+                JSON_serialize_e2(&e2s[i]);
+                E_2 e22;
+                JSON_deserialize_e2(&e22);
+
                 rpi_stop = clock();
-                sigs[i] = decrypt_e2(&setup, &m_secret, &e2s[i]);
+                sigs[i] = decrypt_e2(&setup, &m_secret, &e22);
+
                 verify = verify_sig(&sigs[i], &m_secret, &s_secrets[i], &setup);
                 rpi_total += ((double) rpi_stop - rpi_start);
                 if(verify == 1){
