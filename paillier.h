@@ -260,6 +260,7 @@ void paillier_get_rand_devurandom( void* buf, int len );
 */
 paillier_ciphertext_t* paillier_create_enc_zero();
 
+void init_rand( gmp_randstate_t rand, paillier_get_rand_t get_rand, int bytes );
 /*
 	Just a utility used internally when we need round a number of bits
 	up the number of bytes necessary to hold them.
